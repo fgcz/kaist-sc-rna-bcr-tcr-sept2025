@@ -1,0 +1,412 @@
+---
+title: "Part 2: Exploration"
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    title-block-banner: "#00A7FF"
+filters:
+  - flourish
+css: report_assets/style.css
+editor: visual
+bibliography: report_assets/references.bib
+---
+
+## Learning outcomes
+
+**After having completed this chapter you will be able to:**
+
+- Perform dimensionality reduction (PCA, UMAP) on single-cell data
+- Integrate multiple samples to remove batch effects
+- Cluster cells and evaluate clustering results
+- Annotate cell types using marker genes and automated methods
+- Visualize and interpret single-cell analysis results
+
+## Dimensionality Reduction
+
+Load the `scData` dataset you have created in Part 1:
+
+```{r}
+scData <- readRDS("../scData_part1.rds")
+```
+
+And load the following packages:
+
+```{r}
+library(Seurat)
+```
+
+Once the data is normalized, scaled and variable features have been identified, we can start to reduce the dimensionality of the data.
+For the PCA, by default, only the previously determined variable features are used as input, but can be defined using features argument if you wish to specify a vector of genes. The PCA will only be run on the variable features, that you can check with `VariableFeatures(scData)`.
+
+```{r}
+#| output: false
+scData <- Seurat::RunPCA(scData)
+```
+
+To view the PCA plot:
+
+```{r}
+Seurat::DimPlot(scData, reduction = "pca")
+```
+
+We can colour the PCA plot according to any factor that is present in `@meta.data`, or for any gene. For example we can take the column `percent.globin`:
+
+```{r}
+Seurat::FeaturePlot(scData, reduction = "pca", features = "percent.mito")
+```
+
+Note that we used a different plotting function here: `FeaturePlot`. The difference between `DimPlot` and `FeaturePlot` is that the first allows you to color the points in the plot according to a grouping variable (e.g. sample) while the latter allows you to color the points according to a continuous variable (e.g. gene expression).
+
+Generate a PCA plot where color is according to counts of a gene (i.e. gene expression). For example, you can take `HBA1` (alpha subunit of hemoglobin), or one of the most variable genes (e.g. `IFIT2`):
+
+```{r}
+Seurat::FeaturePlot(scData, reduction = "pca", features = "IFIT2")
+```
+
+We can generate heatmaps according to their principal component scores calculated in the rotation matrix:
+
+```{r}
+Seurat::DimHeatmap(scData, dims = 1:12, cells = 500, balanced = TRUE)
+```
+
+The elbowplot can help you in determining how many PCs to use for downstream analysis such as UMAP:
+
+```{r}
+Seurat::ElbowPlot(scData, ndims = 40) +
+  geom_vline(xintercept = 10, linetype = "dashed", color = "red")
+
+```
+
+The elbow plot ranks principle components based on the percentage of variance explained by each one. Where we observe an "elbow" or flattening curve, the majority of true signal is captured by this number of PCs, eg around 25 PCs for the scData dataset.
+
+Including too many PCs usually does not affect much the result, while including too few PCs can affect the results very much.
+
+UMAP: The goal of these algorithms is to learn the underlying manifold of the data in order to place similar cells together in low-dimensional space.
+
+```{r}
+#| output: false
+scData <- Seurat::RunUMAP(scData, dims = 1:10)
+```
+
+To view the UMAP plot:
+
+```{r}
+Seurat::DimPlot(scData, reduction = "umap")
+```
+
+Try changing the color of the dots in the UMAP according to a variable (e.g. `percent.globin` or `HBA1`):
+
+```{r}
+Seurat::FeaturePlot(scData, features = c("IFIT2",
+                                         "percent.globin",
+                                         "percent.mito"))
+```
+
+You can experiment with UMAP parameters such as the number of neighbors:
+
+```{r}
+#| output: false
+# Try different number of neighbors (default is 30)
+scData <- Seurat::RunUMAP(scData, dims = 1:10, n.neighbors = 50)
+```
+
+```{r}
+Seurat::DimPlot(scData, reduction = "umap")
+```
+
+Reset to standard parameters for consistency:
+
+```{r}
+#| output: false
+scData <- Seurat::RunUMAP(scData, dims = 1:10)
+```
+
+## Integration
+
+Let's have a look at the UMAP again. Although cells of different samples are shared amongst 'clusters', you can still see separation within the clusters:
+
+```{r}
+Seurat::DimPlot(scData, reduction = "umap")
+```
+
+To perform the integration, we split our object by sample, resulting into a set of layers within the `RNA` assay. The layers are integrated and stored in the reduction slot - in our case we call it `integrated.cca`. Then, we re-join the layers
+
+```{r}
+#| output: false
+
+scData[["RNA"]] <- split(scData[["RNA"]], f = scData$orig.ident)
+
+scData <- Seurat::IntegrateLayers(object = scData, method = CCAIntegration,
+                                  orig.reduction = "pca",
+                                  new.reduction = "integrated.cca",
+                                  verbose = FALSE)
+
+# re-join layers after integration
+scData[["RNA"]] <- JoinLayers(scData[["RNA"]])
+```
+
+We can then use this new integrated matrix for clustering and visualization. Now, we can re-run and visualize the results with UMAP.
+
+Create the UMAP again on the `integrated.cca` reduction:
+
+```{r}
+#| output: false
+scData <- RunUMAP(scData, dims = 1:30, reduction = "integrated.cca")
+```
+
+Plotting the UMAP:
+
+```{r}
+Seurat::DimPlot(scData, reduction = "umap")
+```
+
+## Clustering
+
+The method implemented in Seurat first constructs a SNN graph based on the euclidean distance in PCA space, and refine the edge weights between any two cells based on the shared overlap in their local neighborhoods (Jaccard similarity). This step is performed using the `FindNeighbors()` function, and takes as input the previously defined dimensionality of the dataset.
+
+```{r}
+#| output: false
+scData <- Seurat::FindNeighbors(scData, dims = 1:25, reduction = "integrated.cca")
+```
+
+To cluster the cells, Seurat next implements modularity optimization techniques such as the Louvain algorithm (default) or SLM, to iteratively group cells together, with the goal of optimizing the standard modularity function. The `FindClusters()` function implements this procedure, and contains a resolution parameter that sets the 'granularity' of the downstream clustering, with increased values leading to a greater number of clusters.
+
+```{r}
+#| output: false
+scData <- Seurat::FindClusters(scData, resolution = seq(0.2, 1.0, by=0.2))
+```
+
+Cluster id of each cell is added to the metadata object, as a new column for each resolution tested:
+
+```{r}
+head(scData@meta.data)
+```
+
+To view how clusters sub-divide at increasing resolution:
+
+```{r}
+library(clustree)
+clustree::clustree(scData@meta.data[,grep("RNA_snn_res", colnames(scData@meta.data))],
+                   prefix = "RNA_snn_res.")
+```
+
+You can view the UMAP coloring each cell according to a cluster id like this:
+
+```{r}
+Seurat::DimPlot(scData, group.by = "RNA_snn_res.0.2")
+```
+
+Visualise clustering based on a few more resolutions:
+
+```{r}
+Seurat::DimPlot(scData, group.by = "RNA_snn_res.0.4")
+```
+
+```{r}
+Seurat::DimPlot(scData, group.by = "RNA_snn_res.0.6")
+```
+
+Based on resolution of 0.2, the tree stays relatively stable for a few resolution steps, and it seems that clustering fits the UMAP well. Let's set this as our default clustering:
+
+```{r}
+scData <- Seurat::SetIdent(scData, value = scData$RNA_snn_res.0.4)
+```
+
+## Cell Annotation
+
+Load the following packages:
+
+```{r}
+#| output: false
+library(celldex)
+library(SingleR)
+```
+
+During cell annotation we will use the original count data (not the integrated data):
+
+```{r}
+DefaultAssay(scData) <- "RNA"
+```
+
+Based on the UMAP we have generated, we can visualize expression for a gene in each cluster:
+
+```{r}
+Seurat::FeaturePlot(scData, "HBA1")
+```
+
+Based on expression of sets of genes you can do a manual cell type annotation. If you know the marker genes for some cell types, you can check whether they are up-regulated in one or the other cluster. Here we have some marker genes for different cell types:
+
+```{r}
+tcell_genes <- c("IL7R", "LTB", "TRAC", "CD3D")
+bcell_genes <- c("CD19", "CD79A", "CD79B", "MS4A1")
+monocyte_genes <- c("CD14", "CST3", "CD68", "CTSS")
+nk_genes <- c("GNLY", "NKG7", "GZMA", "KLRD1")
+```
+
+Let's have a look at the expression of the four T cell genes:
+
+```{r}
+Seurat::FeaturePlot(scData, tcell_genes, ncol=2)
+```
+
+Which becomes clearer when looking at the violin plot:
+
+```{r}
+Seurat::VlnPlot(scData,
+                features = tcell_genes,
+                ncol = 2)
+```
+
+Have a look at the B cell and monocyte genes as well:
+
+```{r}
+Seurat::FeaturePlot(scData, bcell_genes, ncol=2)
+```
+
+```{r}
+Seurat::VlnPlot(scData,
+                features = bcell_genes,
+                ncol = 2)
+```
+
+```{r}
+Seurat::FeaturePlot(scData, monocyte_genes, ncol=2)
+```
+
+```{r}
+Seurat::VlnPlot(scData,
+                features = monocyte_genes,
+                ncol = 2)
+```
+
+We can also automate this with the function `AddModuleScore`. For each cell, an expression score for a group of genes is calculated:
+
+```{r}
+#| output: false
+scData <- Seurat::AddModuleScore(scData,
+                                 features = list(tcell_genes),
+                                 name = "tcell_genes")
+```
+
+After running `AddModuleScore`, a column was added to `scData@meta.data` called `tcell_genes1`. It contains the module score for each cell (which is basically the average expression of the set of genes).
+
+You can plot the UMAP with
+
+```{r}
+Seurat::FeaturePlot(scData, "tcell_genes1")
+```
+
+Which shows these genes are mainly expressed in certain clusters:
+
+```{r}
+Seurat::VlnPlot(scData,
+                "tcell_genes1")
+```
+
+### Annotating cells according to cycling phase
+
+Based on the same principle, we can also annotate cell cycling state. The function `CellCycleScore` uses `AddModuleScore` to get a score for the G2/M and S phase (the mitotic phases in which cell is cycling). In addition, `CellCycleScore` assigns each cell to either the G2/M, S or G1 phase. 
+
+First we extract the built-in genes for cell cycling:
+
+```{r}
+s.genes <- Seurat::cc.genes.updated.2019$s.genes
+g2m.genes <- Seurat::cc.genes.updated.2019$g2m.genes
+```
+
+Now we run the function:
+
+```{r}
+#| output: false
+
+scData <- Seurat::CellCycleScoring(scData,
+                                   s.features = s.genes,
+                                   g2m.features = g2m.genes)
+```
+
+And we can visualize the annotations:
+
+```{r}
+Seurat::DimPlot(scData, group.by = "Phase")
+```
+
+### Cell type annotation using `SingleR`
+
+To do a fully automated annotation, we need a reference dataset of primary cells. Here we are using a hematopoietic reference dataset from `celldex`. Check out what's in there:
+
+```{r}
+#| output: false
+ref <- celldex::NovershternHematopoieticData()
+class(ref)
+table(ref$label.main)
+```
+
+Now `SingleR` compares our normalized count data to a reference set, and finds the most probable annotation:
+
+```{r}
+#| output: false
+scData_SingleR <- SingleR::SingleR(test = Seurat::GetAssayData(scData),
+                                   ref = ref,
+                                   labels = ref$label.main)
+```
+
+See what's in there by using `head`:
+
+```{r}
+head(scData_SingleR)
+```
+
+Visualize singleR score quality scores:
+
+```{r}
+SingleR::plotScoreHeatmap(scData_SingleR)
+```
+
+```{r}
+SingleR::plotDeltaDistribution(scData_SingleR)
+```
+
+There are some annotations that contain only a few cells. They are usually not of interest, and they clogg our plots. Therefore we remove them from the annotation:
+
+```{r}
+singleR_labels <- scData_SingleR$labels
+t <- table(singleR_labels)
+other <- names(t)[t < 10]
+singleR_labels[singleR_labels %in% other] <- "none"
+```
+
+In order to visualize it in our UMAP, we have to add the annotation to `scData@meta.data`:
+
+```{r}
+scData$SingleR_annot <- singleR_labels
+```
+
+We can plot the annotations in the UMAP. Here, we use a different package for plotting (`dittoSeq`) as it has a bit better default coloring:
+
+```{r}
+library(dittoSeq)
+dittoSeq::dittoDimPlot(scData, "SingleR_annot", size = 0.7)
+```
+
+We can check out how many cells per sample we have for each annotated cell type:
+
+```{r}
+dittoSeq::dittoBarPlot(scData, var = "SingleR_annot", group.by = "orig.ident")
+```
+
+Compare our manual annotation (based on the set of T cell genes) to the annotation with `SingleR`. We can have a look at the mean module score for each `SingleR` annotation like this:
+
+```{r}
+dittoSeq::dittoBarPlot(scData, 
+                       var = "SingleR_annot", 
+                       group.by = "RNA_snn_res.0.3")
+```
+
+Save the final dataset:
+
+```{r}
+saveRDS(scData, "scData_final.rds")
+```
