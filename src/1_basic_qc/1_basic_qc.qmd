@@ -1,5 +1,5 @@
 ---
-title: "Exercise #1: QC"
+title: "Part 1: QC"
 format:
   html:
     embed-resources: true
