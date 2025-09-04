@@ -247,13 +247,20 @@ A sensible decision would be to do mild filtering on the number of features per 
 Here we filter out cells with high mitochondrial content and extreme feature counts:
 
 ```{r}
-Seurat::VlnPlot(scData, features = "nCount_RNA")  + 
-  geom_hline(yintercept = 5000, linetype = "dashed", color = "red")
-  
+nFeatureMin <- 1000
+nFeatureMax <- 5500
+percentMitoMax <- 10
 
-scData <- subset(scData, subset = nFeature_RNA > 200 & 
-                 nFeature_RNA < 5000 &
-                 percent.mito < 20)
+Seurat::VlnPlot(scData, features = "nFeature_RNA")  + 
+  geom_hline(yintercept = nFeatureMin, linetype = "dashed", color = "red") +
+  geom_hline(yintercept = nFeatureMax, linetype = "dashed", color = "red")
+
+Seurat::VlnPlot(scData, features = "percent.mito") +
+  geom_hline(yintercept = percentMitoMax, linetype = "dashed", color = "red")
+
+scData <- subset(scData, subset = nFeature_RNA > nFeatureMin &
+                 nFeature_RNA < nFeatureMax &
+                 percent.mito < percentMitoMax)
 ```
 
 To evaluate this did the trick we can visualize those parameters again in a violin plot:
@@ -320,8 +327,8 @@ This step gives equal weight in downstream analyses, so that highly-expressed ge
 scData <- Seurat::ScaleData(scData)
 ```
 
-Save the dataset for use in Day 2:
+Save the dataset for use in Part 2:
 
 ```{r}
-saveRDS(scData, "scData_day1.rds")
+saveRDS(scData, "../scData_part1.rds")
 ```
