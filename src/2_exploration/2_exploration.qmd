@@ -18,11 +18,11 @@ bibliography: report_assets/references.bib
 
 **After having completed this chapter you will be able to:**
 
-- Perform dimensionality reduction (PCA, UMAP) on single-cell data
-- Integrate multiple samples to remove batch effects
-- Cluster cells and evaluate clustering results
-- Annotate cell types using marker genes and automated methods
-- Visualize and interpret single-cell analysis results
+-   Perform dimensionality reduction (PCA, UMAP) on single-cell data
+-   Integrate multiple samples to remove batch effects
+-   Cluster cells and evaluate clustering results
+-   Annotate cell types using marker genes and automated methods
+-   Visualize and interpret single-cell analysis results
 
 ## Dimensionality Reduction
 
@@ -38,8 +38,7 @@ And load the following packages:
 library(Seurat)
 ```
 
-Once the data is normalized, scaled and variable features have been identified, we can start to reduce the dimensionality of the data.
-For the PCA, by default, only the previously determined variable features are used as input, but can be defined using features argument if you wish to specify a vector of genes. The PCA will only be run on the variable features, that you can check with `VariableFeatures(scData)`.
+Once the data is normalized, scaled and variable features have been identified, we can start to reduce the dimensionality of the data. For the PCA, by default, only the previously determined variable features are used as input, but can be defined using features argument if you wish to specify a vector of genes. The PCA will only be run on the variable features, that you can check with `VariableFeatures(scData)`.
 
 ```{r}
 #| output: false
@@ -308,7 +307,7 @@ Seurat::VlnPlot(scData,
 
 ### Annotating cells according to cycling phase
 
-Based on the same principle, we can also annotate cell cycling state. The function `CellCycleScore` uses `AddModuleScore` to get a score for the G2/M and S phase (the mitotic phases in which cell is cycling). In addition, `CellCycleScore` assigns each cell to either the G2/M, S or G1 phase. 
+Based on the same principle, we can also annotate cell cycling state. The function `CellCycleScore` uses `AddModuleScore` to get a score for the G2/M and S phase (the mitotic phases in which cell is cycling). In addition, `CellCycleScore` assigns each cell to either the G2/M, S or G1 phase.
 
 First we extract the built-in genes for cell cycling:
 
