@@ -397,7 +397,7 @@ Compare our manual annotation (based on the set of T cell genes) to the annotati
 ```{r}
 dittoSeq::dittoBarPlot(scData, 
                        var = "SingleR_annot", 
-                       group.by = "RNA_snn_res.0.3")
+                       group.by = "RNA_snn_res.0.4")
 ```
 
 Save the final dataset:
