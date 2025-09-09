@@ -26,16 +26,12 @@ bibliography: report_assets/references.bib
 
 ## Dimensionality Reduction
 
-Load the `scData` dataset you have created in Part 1:
-
-```{r}
-scData <- readRDS("../scData_part1.rds")
-```
-
-And load the following packages:
+Load the `scData` dataset you have created in Part 1 and load the :
 
 ```{r}
 library(Seurat)
+library(ggplot2)
+scData <- qs2::qs_read("../scData_part1.qs2")
 ```
 
 Once the data is normalized, scaled and variable features have been identified, we can start to reduce the dimensionality of the data. For the PCA, by default, only the previously determined variable features are used as input, but can be defined using features argument if you wish to specify a vector of genes. The PCA will only be run on the variable features, that you can check with `VariableFeatures(scData)`.
@@ -208,7 +204,7 @@ Seurat::DimPlot(scData, group.by = "RNA_snn_res.0.4")
 Seurat::DimPlot(scData, group.by = "RNA_snn_res.0.6")
 ```
 
-Based on resolution of 0.2, the tree stays relatively stable for a few resolution steps, and it seems that clustering fits the UMAP well. Let's set this as our default clustering:
+Based on resolution of 0.4, the tree stays relatively stable for a few resolution steps, and it seems that clustering fits the UMAP well. Let's set this as our default clustering:
 
 ```{r}
 scData <- Seurat::SetIdent(scData, value = scData$RNA_snn_res.0.4)
@@ -407,5 +403,5 @@ dittoSeq::dittoBarPlot(scData,
 Save the final dataset:
 
 ```{r}
-saveRDS(scData, "scData_final.rds")
+qs2::qs_save(scData, "../scData_final.qs2")
 ```

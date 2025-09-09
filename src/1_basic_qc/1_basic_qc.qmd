@@ -330,5 +330,5 @@ scData <- Seurat::ScaleData(scData)
 Save the dataset for use in Part 2:
 
 ```{r}
-saveRDS(scData, "../scData_part1.rds")
+qs2::qs_save(scData, "../scData_part1.qs2")
 ```
