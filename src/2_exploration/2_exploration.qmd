@@ -405,3 +405,13 @@ Save the final dataset:
 ```{r}
 qs2::qs_save(scData, "../scData_final.qs2")
 ```
+
+### Comparing with the automated 10x cell annotation
+
+You might have noticed that Donor1 actually came with a cell annotation file already present: `~/work/5k-human-pbmc-3p-gem-x/Donor1/cell_types` .
+
+Let's load this result and compare it against the celltype annotation we got from SingleR
+
+```{r}
+
+```
