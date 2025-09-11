@@ -328,6 +328,8 @@ And we can visualize the annotations:
 Seurat::DimPlot(scData, group.by = "Phase")
 ```
 
+Cell cycle information can be useful to keep in mind when interpreting downstream analyses.
+
 ### Cell type annotation using `SingleR`
 
 To do a fully automated annotation, we need a reference dataset of primary cells. Here we are using a hematopoietic reference dataset from `celldex`. Check out what's in there:
@@ -360,11 +362,11 @@ Visualize singleR score quality scores:
 SingleR::plotScoreHeatmap(scData_SingleR)
 ```
 
-```{r}
+```{r, warning=FALSE}
 SingleR::plotDeltaDistribution(scData_SingleR)
 ```
 
-There are some annotations that contain only a few cells. They are usually not of interest, and they clogg our plots. Therefore we remove them from the annotation:
+There are some annotations that contain only a few cells. They are usually not of interest, and they clog our plots. Therefore we remove them from the annotation:
 
 ```{r}
 singleR_labels <- scData_SingleR$labels
@@ -400,12 +402,6 @@ dittoSeq::dittoBarPlot(scData,
                        group.by = "RNA_snn_res.0.4")
 ```
 
-Save the final dataset:
-
-```{r}
-qs2::qs_save(scData, "../scData_final.qs2")
-```
-
 ### Comparing with the automated 10x cell annotation
 
 You might have noticed that Donor1 actually came with a cell annotation file already present: `~/work/5k-human-pbmc-3p-gem-x/Donor1/cell_types` .
@@ -413,5 +409,38 @@ You might have noticed that Donor1 actually came with a cell annotation file alr
 Let's load this result and compare it against the celltype annotation we got from SingleR
 
 ```{r}
+# read in the celltypes
+cellTypes <- vroom::vroom("~/work/5k-human-pbmc-3p-gem-x/Donor1/cell_types/cell_types.csv", delim=",")
 
+# create a named vector mapping cells to labels
+cellTypes$barcode <- paste0("Donor1_", cellTypes$barcode)
+cellTypeLabel <- cellTypes$coarse_cell_type
+names(cellTypeLabel) <- cellTypes$barcode
+
+# Create a named vector for all unlabeled cells in our dataset
+cellTypeUnlabeledCells <- setdiff(colnames(scData), cellTypes$barcode)
+cellTypeUnlabeled <- rep(NA, length(cellTypeUnlabeledCells))
+names(cellTypeUnlabeled) <- cellTypeUnlabeledCells
+
+# Merge
+cellTypeLabel <- c(cellTypeLabel, cellTypeUnlabeled)
+
+scData <- AddMetaData(scData, cellTypeLabel, col.name="TenX_annot")
+```
+
+And repeat the visualisation on our reduced dimensionality
+
+```{r}
+dittoSeq::dittoDimPlot(scData, "TenX_annot", size = 0.7,
+                       cells.use = !is.na(scData$TenX_annot),
+                       show.others = TRUE,
+                       opacity=0.8)
+```
+
+```{r}
+dittoSeq::dittoDimPlot(scData, "SingleR_annot", size = 0.7) | 
+  dittoSeq::dittoDimPlot(scData, "TenX_annot", size = 0.7,
+                       cells.use = !is.na(scData$TenX_annot),
+                       show.others = TRUE,
+                       opacity=0.8)
 ```
