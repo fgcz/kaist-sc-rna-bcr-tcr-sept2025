@@ -72,7 +72,7 @@ Look at the report contents.
 ## Solutions
 
 1.  Yes, it appears to have made the right call for both samples. The threshold is set such that the dataset is split into high-UMI barcodes and low-UMI barcodes, at around the knee-point.
-2.  It is around 50%. This is not uncommon to see. Though we have a good number of reads per cell (\~40'000), we would likely benefit from sequencing more cells. Whether this is worth the cost depends on a number of things, like whether we are interested in seeing lowly expressed genes or rare celltypes.
+2.  It is around 50%. This is not uncommon to see. Though we have a good number of reads per cell (\~40'000), we would likely benefit from sequencing more cells. Whether this is worth the cost depends on our desired experimental outcomes, like whether we are interested in seeing lowly expressed genes or rare celltypes.
 3.  CellRanger v9.0.0. Starting from this version, automatic cell annotation is included as an optional part of the analysis, which is why we have an extra tab for Donor1 where we see the cell-typing information.
 :::
 
