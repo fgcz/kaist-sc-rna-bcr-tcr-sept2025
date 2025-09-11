@@ -14,10 +14,11 @@ editor: visual
 bibliography: report_assets/references.bib
 ---
 
-## Learning outcomes
+# Learning outcomes
 
 **After having completed this chapter you will be able to:**
 
+-   Familiarise yourself with the CellRanger output
 -   Load single cell data into R
 -   Explain the basic structure of a `Seurat` object and extract count data and metadata
 -   Calculate and visualize quality measures based on:
@@ -29,6 +30,53 @@ bibliography: report_assets/references.bib
 -   Perform cell filtering based on quality thresholds
 -   Describe and perform standard procedures for normalization and scaling with the package `Seurat`
 -   Select the most variable genes from a `Seurat` object for downstream analyses
+
+# CellRanger
+
+We will be looking at a recent public dataset from [10X Genomics from PBMCs](https://www.10xgenomics.com/datasets/20k_Human_Donor1-4_PBMC_3p_gem-x_multiplex "10X Genomics from PBMCs").
+
+### Exercise #1
+
+Click on the link above and take a look at the data.
+
+1.  How many cells are there total?
+2.  How many samples are there?
+3.  Is it a 5' or 3' dataset?
+4.  From which tissue?
+
+::: {.callout-note collapse="true" appearance="simple"}
+## Solutions
+
+1.  20'000 across the whole dataset, around 5'000 per sample
+2.  4 samples
+3.  The dataset is universal 3' gene expression
+4.  Human Blood (PBMCs)
+:::
+
+For today we will only consider 2 of the samples. We work with the existing CellRanger outputs 10X provides.
+
+Open the following links and take a look at the reports:
+
+-   Donor1: <https://fgcz-gstore.uzh.ch/public/KAIST_SS25/5k_Human_PBMC_3p_gem-x/Donor1/5k_Human_Donor1_PBMC_3p_gem-x_5k_Human_Donor1_PBMC_3p_gem-x_web_summary.html>
+-   Donor2: <https://fgcz-gstore.uzh.ch/public/KAIST_SS25/5k_Human_PBMC_3p_gem-x/Donor2/5k_Human_Donor2_PBMC_3p_gem-x_5k_Human_Donor2_PBMC_3p_gem-x_web_summary.html>
+
+### Exercise #2
+
+Look at the report contents.
+
+1.  Did the cell-calling algorithm work?
+2.  What is the sequence saturation? Do you think we would benefit from resequencing these samples?
+3.  What is the CellRanger version used?
+
+::: {.callout-note collapse="true" appearance="simple"}
+## Solutions
+
+1.  Yes, it appears to have made the right call for both samples. The threshold is set such that the dataset is split into high-UMI barcodes and low-UMI barcodes, at around the knee-point.
+2.  It is around 50%. This is not uncommon to see. Though we have a good number of reads per cell (\~40'000), we would likely benefit from sequencing more cells. Whether this is worth the cost depends on a number of things, like whether we are interested in seeing lowly expressed genes or rare celltypes.
+3.  CellRanger v9.0.0. Starting from this version, automatic cell annotation is included as an optional part of the analysis, which is why we have an extra tab for Donor1 where we see the cell-typing information.
+:::
+
+# Seurat Analysis
 
 ## Loading scRNAseq data
 
