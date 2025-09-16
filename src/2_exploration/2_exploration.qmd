@@ -158,6 +158,26 @@ Plotting the UMAP:
 Seurat::DimPlot(scData, reduction = "umap")
 ```
 
+### Harmony
+
+CCA is the original integration method implemented in Seurat, but it can be slow for large datasets. In addition, it has a tendency to over-correct, meaning it might obscure biological variation in the data beyond simply correcting for the technical noise we actually want to get rid of.
+
+In the case of this data, we are dealing with PBMCs from two donors, and as such we expect the same cell types in both samples. CCA is expected to perform well in this setting. If however we were dealing with samples which have very different cell type compositions, it might be a good idea to try different methods.
+
+One alternative that has become quite popular in recent years is [Harmony](https://portals.broadinstitute.org/harmony/). It works very well for large datasets and produces good results. Though it can also suffer from overcorrection, it is generally less severe than CCA. Let's try using it now.
+
+```{r}
+library(Harmony)
+```
+
+::: callout-important
+## Trying out multiple integration methods
+
+In recent years, there has been increased emphasis on trying multiple different integration methods, rather than just one, as part of standard single cell analysis. This is because integration method results can vary wildly and choosing the results of only one blindly can bias the results. We can use [certain metrics](https://github.com/carmonalab/scIntegrationMetrics) to determine the level of batch mixing versus celltype mixing to determine which of the integration methods we try looks "the best".
+
+[![SC Integration Metrics](report_assets/integration_metrics.jpg)](https://www.biorxiv.org/content/10.1101/2025.01.21.634098v1)
+:::
+
 ## Clustering
 
 The method implemented in Seurat first constructs a SNN graph based on the euclidean distance in PCA space, and refine the edge weights between any two cells based on the shared overlap in their local neighborhoods (Jaccard similarity). This step is performed using the `FindNeighbors()` function, and takes as input the previously defined dimensionality of the dataset.
