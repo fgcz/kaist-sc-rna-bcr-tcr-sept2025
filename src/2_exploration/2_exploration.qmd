@@ -29,8 +29,11 @@ bibliography: report_assets/references.bib
 Load the `scData` dataset you have created in Part 1 and load the :
 
 ```{r}
-library(Seurat)
-library(ggplot2)
+suppressPackageStartupMessages({
+  library(Seurat)
+  library(ggplot2)
+  library(tidyverse)
+})
 scData <- qs2::qs_read("../scData_part1.qs2")
 ```
 
@@ -460,7 +463,14 @@ It can take quite some time on limited computational setups (1.5 minutes per clu
 Now run analysis.
 
 ```{r}
-de_genes <- FindAllMarkers(scData,  min.pct = 0.25, only.pos = TRUE)
+# Here we load the result if we have saved it before to save time
+de_genes_fn <- "de_genes_FindAllMarkers.csv"
+if (file.exists(de_genes_fn)) {
+  de_genes <- vroom::vroom(de_genes_fn, delim="\t")
+} else {
+  de_genes <- FindAllMarkers(scData,  min.pct = 0.25, only.pos = TRUE)
+}
+
 ```
 
 Subset the table to only keep the significant genes, and you can save it as a csv file if you wish to explore it further. Then extract the top 5 markers per cluster:
@@ -502,7 +512,7 @@ One alternative that has become quite popular in recent years is [Harmony](https
 library(harmony)
 
 scData <- RunHarmony(scData, group.by.vars = "orig.ident", reduction.use="pca")
-scData <- FindNeighbors(scData, reduction = "harmony")
+scData <- FindNeighbors(scData, graph.name="harmonynn", reduction = "harmony")
 scData <- FindClusters(scData, graph.name="harmonynn", resolution = seq(0.2, 1.0, by=0.2))
 scData <- RunUMAP(scData, reduction = 'harmony', dims=1:30, reduction.name = 'umap.harmony')
 ```
