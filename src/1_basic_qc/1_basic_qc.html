@@ -3372,6 +3372,13 @@ background-origin: content-box;
    
   <ul>
   <li><a href="#learning-outcomes" id="toc-learning-outcomes" class="nav-link active" data-scroll-target="#learning-outcomes">Learning outcomes</a></li>
+  <li><a href="#cellranger" id="toc-cellranger" class="nav-link" data-scroll-target="#cellranger">CellRanger</a>
+  <ul class="collapse">
+  <li><a href="#exercise-1" id="toc-exercise-1" class="nav-link" data-scroll-target="#exercise-1">Exercise #1</a></li>
+  <li><a href="#exercise-2" id="toc-exercise-2" class="nav-link" data-scroll-target="#exercise-2">Exercise #2</a></li>
+  </ul></li>
+  <li><a href="#seurat-analysis" id="toc-seurat-analysis" class="nav-link" data-scroll-target="#seurat-analysis">Seurat Analysis</a>
+  <ul class="collapse">
   <li><a href="#loading-scrnaseq-data" id="toc-loading-scrnaseq-data" class="nav-link" data-scroll-target="#loading-scrnaseq-data">Loading scRNAseq data</a>
   <ul class="collapse">
   <li><a href="#the-seurat-object" id="toc-the-seurat-object" class="nav-link" data-scroll-target="#the-seurat-object">The <code>Seurat</code> object</a></li>
@@ -3381,6 +3388,7 @@ background-origin: content-box;
   <li><a href="#normalization" id="toc-normalization" class="nav-link" data-scroll-target="#normalization">Normalization</a></li>
   <li><a href="#variable-features" id="toc-variable-features" class="nav-link" data-scroll-target="#variable-features">Variable features</a></li>
   <li><a href="#scaling" id="toc-scaling" class="nav-link" data-scroll-target="#scaling">Scaling</a></li>
+  </ul></li>
   </ul>
 </nav>
 </div>
@@ -3392,10 +3400,11 @@ background-origin: content-box;
 
 
 
-<section id="learning-outcomes" class="level2">
-<h2 class="anchored" data-anchor-id="learning-outcomes">Learning outcomes</h2>
+<section id="learning-outcomes" class="level1">
+<h1>Learning outcomes</h1>
 <p><strong>After having completed this chapter you will be able to:</strong></p>
 <ul>
+<li>Familiarise yourself with the CellRanger output</li>
 <li>Load single cell data into R</li>
 <li>Explain the basic structure of a <code>Seurat</code> object and extract count data and metadata</li>
 <li>Calculate and visualize quality measures based on:
@@ -3411,6 +3420,78 @@ background-origin: content-box;
 <li>Select the most variable genes from a <code>Seurat</code> object for downstream analyses</li>
 </ul>
 </section>
+<section id="cellranger" class="level1">
+<h1>CellRanger</h1>
+<p>We will be looking at a recent public dataset from <a href="https://www.10xgenomics.com/datasets/20k_Human_Donor1-4_PBMC_3p_gem-x_multiplex" title="10X Genomics from PBMCs">10X Genomics from PBMCs</a>.</p>
+<section id="exercise-1" class="level3">
+<h3 class="anchored" data-anchor-id="exercise-1">Exercise #1</h3>
+<p>Click on the link above and take a look at the data.</p>
+<ol type="1">
+<li>How many cells are there total?</li>
+<li>How many samples are there?</li>
+<li>Is it a 5’ or 3’ dataset?</li>
+<li>From which tissue?</li>
+</ol>
+<div class="callout callout-style-simple callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Solutions
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li>20’000 across the whole dataset, around 5’000 per sample</li>
+<li>4 samples</li>
+<li>The dataset is universal 3’ gene expression</li>
+<li>Human Blood (PBMCs)</li>
+</ol>
+</div>
+</div>
+</div>
+<p>For today we will only consider 2 of the samples. We work with the existing CellRanger outputs 10X provides.</p>
+<p>Open the following links and take a look at the reports:</p>
+<ul>
+<li>Donor1: <a href="https://fgcz-gstore.uzh.ch/public/KAIST_SS25/5k_Human_PBMC_3p_gem-x/Donor1/5k_Human_Donor1_PBMC_3p_gem-x_5k_Human_Donor1_PBMC_3p_gem-x_web_summary.html" class="uri">https://fgcz-gstore.uzh.ch/public/KAIST_SS25/5k_Human_PBMC_3p_gem-x/Donor1/5k_Human_Donor1_PBMC_3p_gem-x_5k_Human_Donor1_PBMC_3p_gem-x_web_summary.html</a></li>
+<li>Donor2: <a href="https://fgcz-gstore.uzh.ch/public/KAIST_SS25/5k_Human_PBMC_3p_gem-x/Donor2/5k_Human_Donor2_PBMC_3p_gem-x_5k_Human_Donor2_PBMC_3p_gem-x_web_summary.html" class="uri">https://fgcz-gstore.uzh.ch/public/KAIST_SS25/5k_Human_PBMC_3p_gem-x/Donor2/5k_Human_Donor2_PBMC_3p_gem-x_5k_Human_Donor2_PBMC_3p_gem-x_web_summary.html</a></li>
+</ul>
+</section>
+<section id="exercise-2" class="level3">
+<h3 class="anchored" data-anchor-id="exercise-2">Exercise #2</h3>
+<p>Look at the report contents.</p>
+<ol type="1">
+<li>Did the cell-calling algorithm work?</li>
+<li>What is the sequence saturation? Do you think we would benefit from resequencing these samples?</li>
+<li>What is the CellRanger version used?</li>
+</ol>
+<div class="callout callout-style-simple callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Solutions
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li>Yes, it appears to have made the right call for both samples. The threshold is set such that the dataset is split into high-UMI barcodes and low-UMI barcodes, at around the knee-point.</li>
+<li>It is around 50%. This is not uncommon to see. Though we have a good number of reads per cell (~40’000), we would likely benefit from sequencing more cells. Whether this is worth the cost depends on our desired experimental outcomes, like whether we are interested in seeing lowly expressed genes or rare celltypes.</li>
+<li>CellRanger v9.0.0. Starting from this version, automatic cell annotation is included as an optional part of the analysis, which is why we have an extra tab for Donor1 where we see the cell-typing information.</li>
+</ol>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="seurat-analysis" class="level1">
+<h1>Seurat Analysis</h1>
 <section id="loading-scrnaseq-data" class="level2">
 <h2 class="anchored" data-anchor-id="loading-scrnaseq-data">Loading scRNAseq data</h2>
 <p>The next step after the generation of the count matrices with <code>cellranger count</code>, is the data analysis. The <code>R</code> package <code>Seurat</code> is currently the most popular software to do this. To start working with <code>Seurat</code> you can load it into your environment like this:</p>
@@ -3446,8 +3527,8 @@ background-origin: content-box;
 <span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="fu">gc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>           used  (Mb) gc trigger  (Mb)  max used  (Mb)
-Ncells  3543480 189.3    6613421 353.2   5066352 270.6
-Vcells 64857706 494.9  130332293 994.4 124645890 951.0</code></pre>
+Ncells  3543512 189.3    6613478 353.2   5066862 270.6
+Vcells 64858935 494.9  130334417 994.4 124647119 951.0</code></pre>
 </div>
 </div>
 <p>This imports a raw count matrix. Have a look at the counts of the first 30 cells of three genes by running:</p>
@@ -3852,6 +3933,7 @@ LINC00115       . 0.9556099 . 0.6782379 . . . . . .        </code></pre>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>qs2<span class="sc">::</span><span class="fu">qs_save</span>(scData, <span class="st">&quot;../scData_part1.qs2&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+</section>
 </section>
 
 </main>
