@@ -180,6 +180,8 @@ Cluster id of each cell is added to the metadata object, as a new column for eac
 head(scData@meta.data)
 ```
 
+### Clustree
+
 To view how clusters sub-divide at increasing resolution:
 
 ```{r}
@@ -445,7 +447,50 @@ dittoSeq::dittoDimPlot(scData, "SingleR_annot", size = 0.7) |
                        opacity=0.8)
 ```
 
-## Harmony
+## Differential Expression Analysis
+
+The function FindAllMarkers performs a Wilcoxon plot to determine the genes differentially expressed between each cluster and the rest of the cells. Other types of tests than the Wilcoxon test are available. Check it out by running `?Seurat::FindAllMarkers`.
+
+::: callout-caution
+### Runtimes
+
+It can take quite some time on limited computational setups (1.5 minutes per cluster).
+:::
+
+Now run analysis.
+
+```{r}
+de_genes <- FindAllMarkers(scData,  min.pct = 0.25, only.pos = TRUE)
+```
+
+Subset the table to only keep the significant genes, and you can save it as a csv file if you wish to explore it further. Then extract the top 5 markers per cluster:
+
+```{r}
+de_genes <- subset(de_genes, de_genes$p_val_adj < 0.05)
+vroom::vroom_write(de_genes,
+                   "de_genes_FindAllMarkers.csv",
+                   delim="\t")
+
+top_specific_markers <- de_genes %>%
+  group_by(cluster) %>%
+  top_n(5, avg_log2FC)
+```
+
+And generate e.g. a dotplot:
+
+```{r}
+dittoSeq::dittoDotPlot(scData,
+                       vars = unique(top_specific_markers$gene), 
+                       group.by = "RNA_snn_res.0.4")
+```
+
+Are the T cell genes in there? You can re-load the vector with immune genes and plot them.
+
+```{r}
+tcell_genes <- c("IL7R", "LTB", "TRAC", "CD3D")
+```
+
+## Integration: Harmony
 
 CCA is the original integration method implemented in Seurat, and which we used above, but it can be slow for large datasets. In addition, it has a tendency to over-correct, meaning it might obscure biological variation in the data beyond simply correcting for the technical noise we actually want to get rid of.
 
@@ -456,20 +501,41 @@ One alternative that has become quite popular in recent years is [Harmony](https
 ```{r}
 library(harmony)
 
-scData <- RunHarmony(scData, group.by.vars = "orig.ident", reduction="pca")
-scData <- FindNeighbors(scData, return.neighbor = T, graph.name = 'harmonynn', reduction = "harmony")
-scData <- FindClusters(scData, graph.name = 'harmonygraph', resolution = resolution = seq(0.2, 1.0, by=0.2)) 
-scData <- RunUMAP(scData, nn.name = 'harmonynn', reduction.name = 'umap.harmony')
+scData <- RunHarmony(scData, group.by.vars = "orig.ident", reduction.use="pca")
+scData <- FindNeighbors(scData, reduction = "harmony")
+scData <- FindClusters(scData, graph.name="harmonynn", resolution = seq(0.2, 1.0, by=0.2))
+scData <- RunUMAP(scData, reduction = 'harmony', dims=1:30, reduction.name = 'umap.harmony')
 ```
 
 ::: callout-important
-## Trying out multiple integration methods
+### Trying out different integration methods
 
 In recent years, there has been increased emphasis on trying multiple different integration methods, rather than just one, as part of standard single cell analysis. This is because integration method results can vary wildly and choosing the results of only one blindly can bias the results. We can use [certain metrics](https://github.com/carmonalab/scIntegrationMetrics) to determine the level of batch mixing versus celltype mixing to determine which of the integration methods we try looks "the best".
 
-![SC Integration Metrics](report_assets/integration_metrics.jpg){alt="SC Integration Metrics"}
+![SC Integration Metrics](report_assets/integration_metrics.jpg)
 :::
+
+Take a look at the resulting object.
+
+```{r}
+scData
+```
+
+You may notice 2 additional dimensional reductions, `harmony` as well as `umap.harmony` . The first is the harmony reduction which we got when we ran `RunHarmony`. The latter we got when we executed `RunUMAP` , providing the harmony reduction as input.
+
+Additionally, you may notice that we have added another set of cluster assignments based on the harmony reduction, which are stored in metadata variables starting with `harmony_res.`\*
+
+```{r}
+colnames(scData@meta.data)
+```
 
 ### Exercise
 
 Let's try repeating the steps from "Clustering" and "Cell Annotation" again, but this time using the Harmony integration.
+
+```{r}
+# your code here
+# Hint: You can copy-and-paste the code starting from the "Clustree" section 
+# and simply change the `reduction` argument in the function call to DimPlot
+# as well as the `prefix` argument to the clustree function call
+```
