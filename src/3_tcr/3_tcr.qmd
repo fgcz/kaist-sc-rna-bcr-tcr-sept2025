@@ -1,0 +1,307 @@
+---
+title: "Part 2: TCR"
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    title-block-banner: "#00A7FF"
+filters:
+  - flourish
+css: report_assets/style.css
+editor: visual
+bibliography: report_assets/references.bib
+---
+
+# Single-Cell TCR Analysis Workbook with scRepertoire
+
+## Introduction
+
+T-cell receptor (TCR) analysis allows us to understand the adaptive immune response at single-cell resolution. Each T cell has a unique TCR sequence that defines its antigen specificity. In this workbook, we'll analyze TCR data from diseased human PBMCs using the scRepertoire package.
+
+### What we'll learn:
+- Load and process 10x TCR data
+- Quantify TCR clonality and diversity  
+- Visualize clonal expansion patterns
+- Integrate TCR data with RNA-seq analysis
+
+## Setup and Data Loading
+
+```{r}
+# Load required libraries
+library(scRepertoire)
+library(Seurat)
+library(ggplot2)
+library(dplyr)
+
+# Set working directory and load RNA-seq data
+scData <- qs::qread("~/work/10k-pbmc-rna-tcr-bcr/scData.qs2")
+
+# Check the structure of our RNA-seq data
+print(scData)
+table(scData$seurat_clusters)
+```
+
+### Loading TCR Contigs
+
+The 10x Genomics pipeline generates filtered contig annotations that contain TCR sequence information.
+
+```{r}
+# Load TCR contig data from 10x output
+# The function will automatically detect the 10x format
+tcr_data <- loadContigs("~/work/10k-pbmc-rna-tcr-bcr/", format = "10X")
+
+# Check what we loaded
+print(tcr_data)
+names(tcr_data)
+```
+
+## Processing TCR Data
+
+### Combining TCR Contigs
+
+We need to process the raw contig data into clonal information for each cell.
+
+```{r}
+# Combine TCR data into clones
+# This identifies unique TCR sequences and groups cells with identical TCRs
+combined_tcr <- combineTCR(tcr_data, 
+                           samples = "PBMC_diseased",
+                           removeNA = FALSE,        # Keep cells without TCRs for now
+                           removeMulti = FALSE,     # Keep cells with multiple TCR chains
+                           filterMulti = TRUE)      # But filter to most abundant chains
+
+# Look at the structure
+print(combined_tcr)
+head(combined_tcr[[1]])
+```
+
+**Key concepts:**
+- **Clone**: Cells with identical TCR sequences (same V, D, J genes and CDR3 sequence)
+- **cloneCall**: Different ways to define clones ("strict" uses V(D)J + nucleotide CDR3)
+- **Productive vs Non-productive**: Whether the TCR sequence can produce a functional protein
+
+### Basic TCR Statistics
+
+```{r}
+# How many cells have TCRs?
+tcr_cells <- combined_tcr[[1]]
+total_cells <- nrow(tcr_cells)
+cells_with_tcr <- sum(!is.na(tcr_cells$CTstrict))
+
+cat("Total cells:", total_cells, "\n")
+cat("Cells with TCRs:", cells_with_tcr, "\n") 
+cat("TCR detection rate:", round(cells_with_tcr/total_cells*100, 1), "%\n")
+```
+
+## Basic TCR Analysis
+
+### 1. Clone Quantification
+
+How many unique TCR clones do we have?
+
+```{r}
+# Plot the total number of unique clones
+clonalQuant(combined_tcr, 
+            cloneCall = "strict",
+            scale = TRUE)  # Show as percentage
+```
+
+### 2. Clonal Abundance Distribution
+
+How are clone sizes distributed?
+
+```{r}
+# Visualize clone abundance (frequency distribution)
+clonalAbundance(combined_tcr,
+                cloneCall = "strict",
+                scale = FALSE)  # Show raw counts
+```
+
+**Interpretation:** Most clones are singlets (1 cell), with fewer expanded clones. This is typical of healthy immune repertoires.
+
+### 3. Clonal Homeostasis
+
+What proportion of the repertoire is occupied by different clone size groups?
+
+```{r}
+# Analyze clonal homeostasis (repertoire composition)
+clonalHomeostasis(combined_tcr,
+                  cloneCall = "strict")
+```
+
+**Interpretation:** 
+- **Rare clones** (single cells): Usually most abundant
+- **Hyperexpanded clones**: May indicate recent immune activation
+
+### 4. TCR Sequence Length Distribution
+
+```{r}
+# Analyze CDR3 amino acid length distribution
+clonalLength(combined_tcr,
+             cloneCall = "aa",  # Use amino acid sequences
+             chain = "both")    # Include both TCR chains
+```
+
+### 5. Clonal Diversity
+
+How diverse is our TCR repertoire?
+
+```{r}
+# Calculate Shannon diversity (higher = more diverse)
+clonalDiversity(combined_tcr,
+                cloneCall = "strict",
+                metric = "shannon")
+
+# Compare with inverse Simpson index
+clonalDiversity(combined_tcr,
+                cloneCall = "strict", 
+                metric = "inv.simpson")
+```
+
+**Interpretation:**
+- **Shannon entropy**: Accounts for both richness (number of clones) and evenness
+- **Inverse Simpson**: More sensitive to abundant clones
+
+## Integration with RNA-seq Data
+
+Now we'll combine our TCR analysis with the RNA-seq data to see how clonal expansion relates to cell types and states.
+
+### Combining Expression and TCR Data
+
+```{r}
+# Add TCR information to our Seurat object
+# This matches cells by barcode between datasets
+scData <- combineExpression(combined_tcr, 
+                           scData,
+                           cloneCall = "strict",
+                           proportion = FALSE,  # Use raw clone counts
+                           cloneSize = c(Single = 1, Small = 5, Medium = 20, Large = 100, Hyperexpanded = 500))
+
+# Check what was added
+colnames(scData@meta.data)[grep("clone|CTstrict", colnames(scData@meta.data))]
+
+# How many cells got TCR information?
+table(is.na(scData$CTstrict))
+```
+
+### TCR Metrics by Cell Cluster
+
+```{r}
+# Visualize clone sizes across clusters
+clonalOccupy(scData, 
+             x.axis = "seurat_clusters")
+```
+
+**Questions to consider:**
+- Which clusters have the most expanded clones?
+- Are certain cell types more clonally expanded?
+
+### Advanced Visualization: Clonal Overlay
+
+This shows where expanded clones are located in UMAP space:
+
+```{r}
+# Overlay clonal expansion on UMAP
+# Shows cells with clones above frequency threshold
+clonalOverlay(scData,
+              reduction = "umap",
+              cutpoint = 5,        # Show clones with ≥5 cells
+              bins = 10)           # Smoothing for density contours
+```
+
+**Interpretation:** Expanded clones may cluster in specific regions, suggesting shared functions or activation states.
+
+## Gene Expression in Expanded Clones
+
+### Finding Clonally Expanded Cells
+
+```{r}
+# Identify cells in expanded clones (>= 5 cells per clone)
+expanded_clones <- scData@meta.data$clonalFrequency >= 5
+table(expanded_clones, useNA = "ifany")
+
+# Add this as metadata
+scData$expanded_clone <- ifelse(expanded_clones & !is.na(expanded_clones), 
+                               "Expanded", "Single/Small")
+table(scData$expanded_clone, useNA = "ifany")
+```
+
+### Visualization on UMAP
+
+```{r}
+# Plot UMAP colored by clonal expansion
+DimPlot(scData, 
+        group.by = "expanded_clone",
+        reduction = "umap") +
+  ggtitle("Clonally Expanded vs Single/Small Clones")
+
+# Also show by clone size categories
+DimPlot(scData,
+        group.by = "cloneSize", 
+        reduction = "umap") +
+  ggtitle("Clone Size Distribution")
+```
+
+## Summary Statistics
+
+```{r}
+# Create a summary table
+expansion_summary <- scData@meta.data %>%
+  filter(!is.na(CTstrict)) %>%  # Only cells with TCRs
+  group_by(seurat_clusters) %>%
+  summarise(
+    total_tcr_cells = n(),
+    n_unique_clones = length(unique(CTstrict)),
+    n_expanded_clones = sum(clonalFrequency >= 5, na.rm = TRUE),
+    pct_expanded = round(n_expanded_clones/total_tcr_cells*100, 1),
+    .groups = 'drop'
+  ) %>%
+  arrange(desc(pct_expanded))
+
+print(expansion_summary)
+```
+
+## Key Takeaways
+
+1. **TCR Detection**: Not all cells will have detected TCRs (~30-70% typical for PBMCs)
+
+2. **Clonal Structure**: Most TCRs are unique (singlets), with few expanded clones
+
+3. **Disease Context**: In diseased samples, you might see:
+   - More clonal expansion than healthy controls
+   - Specific cell types with higher expansion rates
+   - Potential oligoclonal responses
+
+4. **Integration Value**: Combining TCR and RNA-seq data reveals:
+   - Which cell types undergo clonal expansion
+   - Whether expanded clones have distinct gene expression
+   - Spatial organization of clones in transcriptional space
+
+## Next Steps
+
+For more advanced analysis, consider:
+- Comparing with healthy controls
+- Gene set enrichment in expanded clones  
+- TCR motif analysis
+- Clonal tracking across conditions/timepoints
+- BCR analysis if B cell data available
+
+## Troubleshooting
+
+**Low TCR detection rate?**
+- Check if 5' or 3' chemistry was used (5' captures TCRs better)
+- Verify cell viability and RNA quality
+- Consider TCR enrichment protocols
+
+**No expanded clones?**
+- Normal in some healthy samples
+- May need deeper sequencing
+- Consider different clone size thresholds
+
+**Integration issues?**
+- Check barcode formats match between datasets
+- Verify cell filtering was applied consistently
+- Consider batch effects if multiple samples
+
